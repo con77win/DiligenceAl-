@@ -21,10 +21,44 @@ import {
   TrendingUp,
   TrendingDown,
   Loader2,
+  Award,
+  ExternalLink,
+  Calculator,
+  AlertCircle,
+  BarChart3,
 } from "lucide-react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+
+interface FinancialData {
+  revenue?: string
+  profit_loss?: string
+  ebitda?: string
+  valuation?: string
+  funding_rounds?: string[]
+  last_funding_amount?: string
+  last_funding_date?: string
+  investors?: string[]
+  burn_rate?: string
+  runway?: string
+  arr_mrr?: string
+  growth_rate?: string
+  summary?: string
+  extraction_method?: string
+  confidence_score?: number
+}
+
+interface ScoreBreakdown {
+  team_experience: number
+  market_size: number
+  traction: number
+  financial_performance: number
+  competitive_advantage: number
+  risk_factors: number
+  data_quality: number
+}
 
 interface AnalysisData {
   id: string
@@ -36,6 +70,11 @@ interface AnalysisData {
   overall_score: number
   analysis_result: any
   created_at: string
+  perplexity_data?: {
+    insights?: string
+    citations?: string[]
+    error?: string
+  }
 }
 
 export default function AnalysisResultsPage() {
@@ -92,7 +131,6 @@ export default function AnalysisResultsPage() {
     const shareUrl = `${window.location.origin}/shared/${params.id}`
     try {
       await navigator.clipboard.writeText(shareUrl)
-      // You could add a toast notification here
       alert("Share link copied to clipboard!")
     } catch (error) {
       console.error("Error copying to clipboard:", error)
@@ -139,6 +177,200 @@ export default function AnalysisResultsPage() {
     }
   }
 
+  const getRecommendationColor = (recommendation: string) => {
+    switch (recommendation) {
+      case "RECOMMENDED TO INVEST":
+        return "text-green-600 bg-green-50 border-green-200"
+      case "PROCEED WITH CAUTION":
+        return "text-yellow-600 bg-yellow-50 border-yellow-200"
+      case "DO NOT INVEST":
+        return "text-red-600 bg-red-50 border-red-200"
+      case "INSUFFICIENT DATA":
+        return "text-gray-600 bg-gray-50 border-gray-200"
+      default:
+        return "text-gray-600 bg-gray-50 border-gray-200"
+    }
+  }
+
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return "text-green-600"
+    if (score >= 60) return "text-yellow-600"
+    return "text-red-600"
+  }
+
+  const getScoreComponentColor = (score: number, maxScore: number) => {
+    const percentage = (score / maxScore) * 100
+    if (percentage >= 80) return "bg-green-500"
+    if (percentage >= 60) return "bg-yellow-500"
+    if (percentage >= 40) return "bg-orange-500"
+    return "bg-red-500"
+  }
+
+  const renderFinancialData = (financialData: FinancialData) => {
+    if (!financialData) return null
+
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Calculator className="h-5 w-5 text-green-600" />
+            <span>Financial Data</span>
+            {financialData.extraction_method && (
+              <Badge variant="outline" className="ml-2">
+                {financialData.extraction_method.replace("_", " ")}
+              </Badge>
+            )}
+          </CardTitle>
+          <CardDescription>
+            Extracted and verified financial information
+            {financialData.confidence_score && (
+              <span className="ml-2">• Confidence: {financialData.confidence_score}%</span>
+            )}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {financialData.summary && (
+            <div className="p-4 bg-blue-50 rounded-lg">
+              <h4 className="font-semibold text-blue-900 mb-2">Financial Summary</h4>
+              <p className="text-blue-800 text-sm leading-relaxed">{financialData.summary}</p>
+            </div>
+          )}
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-3">
+              <h4 className="font-semibold text-gray-900">Revenue Metrics</h4>
+              {financialData.revenue && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Revenue:</span>
+                  <span className="font-medium">{financialData.revenue}</span>
+                </div>
+              )}
+              {financialData.arr_mrr && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">ARR/MRR:</span>
+                  <span className="font-medium">{financialData.arr_mrr}</span>
+                </div>
+              )}
+              {financialData.growth_rate && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Growth Rate:</span>
+                  <span className="font-medium">{financialData.growth_rate}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              <h4 className="font-semibold text-gray-900">Funding & Valuation</h4>
+              {financialData.valuation && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Valuation:</span>
+                  <span className="font-medium">{financialData.valuation}</span>
+                </div>
+              )}
+              {financialData.last_funding_amount && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Latest Funding:</span>
+                  <span className="font-medium">{financialData.last_funding_amount}</span>
+                </div>
+              )}
+              {financialData.burn_rate && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Burn Rate:</span>
+                  <span className="font-medium">{financialData.burn_rate}</span>
+                </div>
+              )}
+              {financialData.runway && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Runway:</span>
+                  <span className="font-medium">{financialData.runway}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {financialData.funding_rounds && financialData.funding_rounds.length > 0 && (
+            <div className="pt-4 border-t">
+              <h4 className="font-semibold text-gray-900 mb-2">Funding History</h4>
+              <div className="flex flex-wrap gap-2">
+                {financialData.funding_rounds.map((round, index) => (
+                  <Badge key={index} variant="outline" className="bg-green-50 text-green-700">
+                    {round}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {financialData.investors && financialData.investors.length > 0 && (
+            <div className="pt-4 border-t">
+              <h4 className="font-semibold text-gray-900 mb-2">Investors</h4>
+              <div className="flex flex-wrap gap-2">
+                {financialData.investors.map((investor, index) => (
+                  <Badge key={index} variant="outline" className="bg-purple-50 text-purple-700">
+                    {investor}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    )
+  }
+
+  const renderScoreBreakdown = (scoreBreakdown: ScoreBreakdown, scoreJustification: any) => {
+    const components = [
+      { name: "Team Experience", score: scoreBreakdown.team_experience, max: 20 },
+      { name: "Market Size", score: scoreBreakdown.market_size, max: 15 },
+      { name: "Traction", score: scoreBreakdown.traction, max: 25 },
+      { name: "Financial Performance", score: scoreBreakdown.financial_performance, max: 20 },
+      { name: "Competitive Advantage", score: scoreBreakdown.competitive_advantage, max: 10 },
+      { name: "Risk Factors", score: scoreBreakdown.risk_factors, max: 0 },
+      { name: "Data Quality", score: scoreBreakdown.data_quality, max: 10 },
+    ]
+
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <BarChart3 className="h-5 w-5 text-purple-600" />
+            <span>Investment Score Breakdown</span>
+          </CardTitle>
+          <CardDescription>Detailed scoring analysis with justifications</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {components.map((component) => (
+            <div key={component.name} className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">{component.name}</span>
+                <div className="flex items-center space-x-2">
+                  <span className={`font-bold ${component.score >= 0 ? "text-green-600" : "text-red-600"}`}>
+                    {component.score >= 0 ? "+" : ""}
+                    {component.score}
+                  </span>
+                  <span className="text-xs text-gray-500">/ {component.max}</span>
+                </div>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className={`h-2 rounded-full ${getScoreComponentColor(Math.abs(component.score), component.max)}`}
+                  style={{
+                    width: `${Math.min((Math.abs(component.score) / component.max) * 100, 100)}%`,
+                  }}
+                ></div>
+              </div>
+              {scoreJustification && scoreJustification[component.name.toLowerCase().replace(" ", "_")] && (
+                <p className="text-xs text-gray-600 mt-1">
+                  {scoreJustification[component.name.toLowerCase().replace(" ", "_")]}
+                </p>
+              )}
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    )
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -166,6 +398,9 @@ export default function AnalysisResultsPage() {
   }
 
   const analysis = analysisData.analysis_result
+  const financialData = analysis?.financialData
+  const scoreBreakdown = analysis?.scoreBreakdown
+  const scoreJustification = analysis?.scoreJustification
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -201,6 +436,12 @@ export default function AnalysisResultsPage() {
                 Due diligence report generated on {new Date(analysisData.created_at).toLocaleDateString()}
               </p>
               <p className="text-sm text-gray-500 mt-1">Source: {analysisData.content_source}</p>
+              {analysisData.perplexity_data?.insights && (
+                <div className="flex items-center space-x-2 mt-2">
+                  <ExternalLink className="h-4 w-4 text-blue-500" />
+                  <span className="text-sm text-blue-600">Enhanced with external research</span>
+                </div>
+              )}
             </div>
             <div className="text-right">
               <div className="flex items-center space-x-2 mb-2">
@@ -210,13 +451,73 @@ export default function AnalysisResultsPage() {
                 <Badge className="bg-red-100 text-red-700">{analysisData.red_flags_count} Red Flags</Badge>
               </div>
               <div className="flex items-center space-x-2">
-                <span className="text-sm text-gray-500">Overall Score:</span>
-                <span className={`text-lg font-bold ${getRiskLevelColor(analysisData.risk_level)}`}>
+                <Award className="h-5 w-5 text-blue-500" />
+                <span className="text-sm text-gray-500">Investment Score:</span>
+                <span className={`text-2xl font-bold ${getScoreColor(analysisData.overall_score)}`}>
                   {analysisData.overall_score}/100
                 </span>
               </div>
             </div>
           </div>
+
+          {/* Investment Recommendation Banner */}
+          {analysis?.recommendation && (
+            <div className={`p-4 rounded-lg border-2 mb-6 ${getRecommendationColor(analysis.recommendation)}`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-lg">Investment Recommendation</h3>
+                  <p className="text-2xl font-bold mt-1">{analysis.recommendation}</p>
+                  {analysis.recommendationJustification && (
+                    <div className="mt-2 text-sm">
+                      <ul className="space-y-1">
+                        {analysis.recommendationJustification.map((reason: string, index: number) => (
+                          <li key={index}>• {reason}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+                {scoreBreakdown && (
+                  <div className="text-right">
+                    <div className="text-sm space-y-1">
+                      <div className="flex justify-between space-x-4">
+                        <span>Team:</span>
+                        <span className={scoreBreakdown.team_experience >= 0 ? "text-green-600" : "text-red-600"}>
+                          {scoreBreakdown.team_experience >= 0 ? "+" : ""}
+                          {scoreBreakdown.team_experience}
+                        </span>
+                      </div>
+                      <div className="flex justify-between space-x-4">
+                        <span>Traction:</span>
+                        <span className={scoreBreakdown.traction >= 0 ? "text-green-600" : "text-red-600"}>
+                          {scoreBreakdown.traction >= 0 ? "+" : ""}
+                          {scoreBreakdown.traction}
+                        </span>
+                      </div>
+                      <div className="flex justify-between space-x-4">
+                        <span>Financial:</span>
+                        <span className={scoreBreakdown.financial_performance >= 0 ? "text-green-600" : "text-red-600"}>
+                          {scoreBreakdown.financial_performance >= 0 ? "+" : ""}
+                          {scoreBreakdown.financial_performance}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Financial Data Alert */}
+          {financialData && (
+            <Alert className="mb-6">
+              <Calculator className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Financial data extracted via {financialData.extraction_method?.replace("_", " ")}:</strong>
+                This analysis includes financial metrics with {financialData.confidence_score}% confidence.
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* Progress Bar for Overall Score */}
           <div className="mb-6">
@@ -285,8 +586,10 @@ export default function AnalysisResultsPage() {
 
         {/* Main Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="scoring">Scoring</TabsTrigger>
+            <TabsTrigger value="financial">Financial</TabsTrigger>
             <TabsTrigger value="red-flags">Red Flags</TabsTrigger>
             <TabsTrigger value="verification">Verification</TabsTrigger>
             <TabsTrigger value="questions">Follow-up</TabsTrigger>
@@ -332,47 +635,107 @@ export default function AnalysisResultsPage() {
                 </CardContent>
               </Card>
 
-              {/* Investment Recommendation */}
+              {/* Investment Recommendation Details */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
                     <Target className="h-5 w-5 text-purple-600" />
-                    <span>Investment Recommendation</span>
+                    <span>Investment Analysis</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {analysis?.investmentRecommendation && (
-                    <>
-                      <div className="text-center p-4 rounded-lg bg-gray-50">
-                        <div
-                          className={`text-2xl font-bold mb-2 ${
-                            analysis.investmentRecommendation.recommendation === "proceed"
-                              ? "text-green-600"
-                              : analysis.investmentRecommendation.recommendation === "proceed_with_caution"
-                                ? "text-yellow-600"
-                                : "text-red-600"
-                          }`}
-                        >
-                          {analysis.investmentRecommendation.recommendation.replace("_", " ").toUpperCase()}
-                        </div>
+                    <div className="space-y-3">
+                      <div>
+                        <h4 className="font-semibold text-gray-900 mb-2">Reasoning:</h4>
+                        <p className="text-sm text-gray-600">{analysis.investmentRecommendation.reasoning}</p>
                       </div>
-                      <div className="space-y-3">
+                      {analysis.investmentRecommendation.conditions && (
                         <div>
-                          <h4 className="font-semibold text-gray-900 mb-2">Reasoning:</h4>
-                          <p className="text-sm text-gray-600">{analysis.investmentRecommendation.reasoning}</p>
+                          <h4 className="font-semibold text-gray-900 mb-2">Conditions:</h4>
+                          <p className="text-sm text-gray-600">{analysis.investmentRecommendation.conditions}</p>
                         </div>
-                        {analysis.investmentRecommendation.conditions && (
-                          <div>
-                            <h4 className="font-semibold text-gray-900 mb-2">Conditions:</h4>
-                            <p className="text-sm text-gray-600">{analysis.investmentRecommendation.conditions}</p>
-                          </div>
-                        )}
-                      </div>
-                    </>
+                      )}
+                    </div>
                   )}
                 </CardContent>
               </Card>
             </div>
+
+            {/* External Research Insights */}
+            {analysisData.perplexity_data?.insights && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <ExternalLink className="h-5 w-5 text-blue-600" />
+                    <span>External Research Insights</span>
+                  </CardTitle>
+                  <CardDescription>Real-time web research and market intelligence</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="prose prose-sm max-w-none">
+                    <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                      {analysisData.perplexity_data.insights}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="scoring" className="space-y-6">
+            {scoreBreakdown ? (
+              renderScoreBreakdown(scoreBreakdown, scoreJustification)
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <BarChart3 className="h-5 w-5 text-gray-400" />
+                    <span>Score Breakdown</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-8">
+                    <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No Score Breakdown Available</h3>
+                    <p className="text-gray-600">Detailed scoring information is not available for this analysis.</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="financial" className="space-y-6">
+            {financialData ? (
+              renderFinancialData(financialData)
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Calculator className="h-5 w-5 text-gray-400" />
+                    <span>Financial Data</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-8">
+                    <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No Financial Data Available</h3>
+                    <p className="text-gray-600 mb-4">
+                      No financial information could be extracted from the provided content.
+                    </p>
+                    <div className="bg-blue-50 p-4 rounded-lg text-left">
+                      <h4 className="font-semibold text-blue-900 mb-2">Recommendations:</h4>
+                      <ul className="text-sm text-blue-800 space-y-1">
+                        <li>• Request audited financial statements</li>
+                        <li>• Ask for detailed revenue and growth metrics</li>
+                        <li>• Obtain funding history and investor information</li>
+                        <li>• Review burn rate and runway calculations</li>
+                      </ul>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="red-flags" className="space-y-6">

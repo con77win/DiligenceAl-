@@ -107,9 +107,19 @@ export default function UploadPage() {
       }
     } catch (error) {
       console.error("Analysis error:", error)
-      setAnalysisStep("Analysis failed. Please try again.")
+      const errorMessage = error instanceof Error ? error.message : "Analysis failed"
+
+      // Enhanced error handling for PDF issues
+      if (errorMessage.includes("PDF processing failed") || errorMessage.includes("worker")) {
+        setAnalysisStep("PDF processing failed. Consider using URL or Data Room analysis instead.")
+      } else {
+        setAnalysisStep("Analysis failed. Please try again.")
+      }
+
       setIsAnalyzing(false)
-      // You could add error state handling here
+
+      // Show error message to user
+      alert(`Analysis failed: ${errorMessage}`)
     }
   }
 
@@ -241,6 +251,9 @@ export default function UploadPage() {
                               : "Drag & drop your pitch deck PDF, or click to browse"}
                           </p>
                           <p className="text-sm text-gray-500">PDF files up to 10MB</p>
+                          <p className="text-xs text-gray-400">
+                            Note: If PDF processing fails, try using the URL or Data Room options instead
+                          </p>
                         </div>
                       )}
                     </div>
