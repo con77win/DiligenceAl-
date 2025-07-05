@@ -38,7 +38,8 @@ async function extractTextFromPDF(buffer: Buffer): Promise<string> {
         }
         resolve(text.trim())
       } catch (error) {
-        reject(new Error(`PDF text extraction failed: ${error.message}`))
+        const message = error instanceof Error ? error.message : String(error)
+        reject(new Error(`PDF text extraction failed: ${message}`))
       }
     })
 
@@ -48,12 +49,15 @@ async function extractTextFromPDF(buffer: Buffer): Promise<string> {
 
 async function fetchWebContent(url: string): Promise<string> {
   try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 10000)
     const response = await fetch(url, {
       headers: {
         "User-Agent": "Mozilla/5.0 (compatible; DiligenceAI/1.0; +https://diligenceai.com)",
       },
-      timeout: 10000, // 10 second timeout
+      signal: controller.signal,
     })
+    clearTimeout(timeout)
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`)
@@ -74,7 +78,8 @@ async function fetchWebContent(url: string): Promise<string> {
 
     return text.substring(0, 15000) // Limit for API efficiency
   } catch (error) {
-    throw new Error(`Failed to fetch content from URL: ${error.message}`)
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`Failed to fetch content from URL: ${message}`)
   }
 }
 
@@ -145,7 +150,8 @@ function cleanAndParseJSON(text: string): any {
   } catch (error) {
     console.error("JSON parsing failed:", error)
     console.error("Attempted to parse:", text.substring(0, 500))
-    throw new Error(`Invalid JSON response: ${error.message}`)
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`Invalid JSON response: ${message}`)
   }
 }
 
@@ -326,10 +332,14 @@ export async function POST(request: NextRequest) {
       }
     } catch (extractionError) {
       console.error("Content extraction error:", extractionError)
+      const message =
+        extractionError instanceof Error
+          ? extractionError.message
+          : String(extractionError)
       return NextResponse.json(
         {
           success: false,
-          error: `Failed to extract content: ${extractionError.message}`,
+          error: `Failed to extract content: ${message}`,
         },
         { status: 400 },
       )
@@ -441,7 +451,7 @@ Provide your analysis as a valid JSON object with this EXACT structure. Do not i
     let analysisResult
     try {
       const { text } = await generateText({
-        model: openai("gpt-4o", { apiKey: OPENAI_API_KEY }),
+        model: openai("gpt-4o" as any, { apiKey: OPENAI_API_KEY } as any),
         prompt: analysisPrompt,
         temperature: 0.1, // Very low temperature for consistent JSON
         maxTokens: 4000,
@@ -540,7 +550,8 @@ Provide your analysis as a valid JSON object with this EXACT structure. Do not i
     return NextResponse.json(
       {
         success: false,
-        error: error.message || "Failed to analyze content",
+        error: (error instanceof Error ? error.message : String(error)) ||
+          "Failed to analyze content",
         processingTime: Date.now() - startTime,
       },
       { status: 500 },

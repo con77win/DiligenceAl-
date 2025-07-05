@@ -48,6 +48,7 @@ export default function SharedReportPage() {
           .select(`
             analysis_id,
             expires_at,
+            view_count,
             analyses (
               id,
               company_name,
@@ -74,7 +75,7 @@ export default function SharedReportPage() {
         // Increment view count
         await supabase
           .from("shared_reports")
-          .update({ view_count: supabase.raw("view_count + 1") })
+          .update({ view_count: (sharedData.view_count || 0) + 1 })
           .eq("share_token", params.token)
 
         setAnalysisData(sharedData.analyses as SharedAnalysisData)
